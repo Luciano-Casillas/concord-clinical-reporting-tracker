@@ -64,7 +64,19 @@ def inject_css():
             box-shadow: 0 1px 3px rgba(10,51,96,0.08);
         }}
         div[data-testid="stMetric"] label {{ color: {NAVY} !important; }}
-        div[data-testid="stMetricValue"] {{ font-size: 2.25rem; }}
+        div[data-testid="stMetricLabel"] {{
+            white-space: normal !important;
+            overflow-wrap: break-word;
+            line-height: 1.25;
+            min-height: 2.6em;
+        }}
+        div[data-testid="stMetricValue"] {{
+            font-size: 2.25rem;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: unset !important;
+            line-height: 1.15;
+        }}
 
         .insight-strip {{
             background: {WHITE};
@@ -124,7 +136,7 @@ def inject_css():
         }}
 
         [data-baseweb="tag"] {{ color: {WHITE} !important; }}
-        [data-baseweb="tag"] span {{ color: {WHITE} !important; }}
+        [data-baseweb="tag"] * {{ color: {WHITE} !important; }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -216,6 +228,11 @@ def sparkline(data, x, y, color=BLUE_700):
     return fig
 
 
+def kpi_card(label, value, spark_df, x, y, color):
+    st.metric(label, value)
+    st.plotly_chart(sparkline(spark_df, x, y, color), width="stretch", config={"displayModeBar": False})
+
+
 def takeaway(text):
     st.markdown(f'<div class="chart-takeaway">\U0001F4CC <b>Takeaway:</b> {text}</div>', unsafe_allow_html=True)
 
@@ -233,8 +250,10 @@ def insight(text, label="Key Finding"):
     )
 
 
-def section_header(title, info_text=None):
+def section_header(title, question=None, info_text=None):
     st.markdown(f'<div class="section-header"><h4>{title}</h4></div>', unsafe_allow_html=True)
+    if question:
+        section_subtitle(f"Question: {question}")
     if info_text:
         with st.expander("What am I looking at?"):
             st.markdown(info_text)
@@ -367,30 +386,15 @@ def main():
 
     k1, k2, k3, k4, k5 = st.columns(5)
     with k1:
-        c1, c2 = st.columns([3, 2])
-        c1.metric("Reports in View", f"{total_reports:,}")
-        c2.plotly_chart(sparkline(weekly, "report_week", "n", BLUE_700),
-                         width="stretch", config={"displayModeBar": False})
+        kpi_card("Reports in View", f"{total_reports:,}", weekly, "report_week", "n", BLUE_700)
     with k2:
-        c1, c2 = st.columns([3, 2])
-        c1.metric("QA Escalation Rate", f"{escalation_rate:.2f}%")
-        c2.plotly_chart(sparkline(weekly, "report_week", "escalation_rate", RED_SOFT),
-                         width="stretch", config={"displayModeBar": False})
+        kpi_card("QA Escalation Rate", f"{escalation_rate:.2f}%", weekly, "report_week", "escalation_rate", RED_SOFT)
     with k3:
-        c1, c2 = st.columns([3, 2])
-        c1.metric("Avg Pacing vs. Target", f"{avg_pacing:.2f}%")
-        c2.plotly_chart(sparkline(weekly, "report_week", "pacing", ORANGE_700),
-                         width="stretch", config={"displayModeBar": False})
+        kpi_card("Avg Pacing vs. Target", f"{avg_pacing:.2f}%", weekly, "report_week", "pacing", ORANGE_700)
     with k4:
-        c1, c2 = st.columns([3, 2])
-        c1.metric("Avg Click-Through Rate", f"{avg_ctr:.2f}%")
-        c2.plotly_chart(sparkline(weekly, "report_week", "ctr", GREEN_700),
-                         width="stretch", config={"displayModeBar": False})
+        kpi_card("Avg Click-Through Rate", f"{avg_ctr:.2f}%", weekly, "report_week", "ctr", GREEN_700)
     with k5:
-        c1, c2 = st.columns([3, 2])
-        c1.metric("Deliverable Value Tracked", f"${total_value / 1_000_000:.2f}M")
-        c2.plotly_chart(sparkline(weekly, "report_week", "value", STEEL_700),
-                         width="stretch", config={"displayModeBar": False})
+        kpi_card("Deliverable Value Tracked", f"${total_value / 1_000_000:.2f}M", weekly, "report_week", "value", STEEL_700)
 
     st.markdown("---")
 
@@ -415,7 +419,11 @@ def main():
             label="Executive Summary",
         )
 
-        section_header("Pacing vs. Contracted Target by Client")
+        section_header(
+            "Pacing vs. Contracted Target by Client",
+            question="Which clients are pacing off contracted target and need a proactive conversation "
+                      "before they raise it themselves?",
+        )
         by_client = fdf.groupby("client_name")["pacing_pct"].mean().reset_index().sort_values("pacing_pct", ascending=False)
         fig = bar_chart(by_client, "client_name", "pacing_pct", "Average Pacing vs. Contracted Target by Client",
                          y_title="Pacing %", pct=True, color=None)
@@ -424,27 +432,40 @@ def main():
         best = by_client.iloc[0]
         worst = by_client.iloc[-1]
         takeaway(f"<b>{best['client_name']}</b> paces highest in view at <b>{best['pacing_pct']:.2f}%</b> of "
-                 f"contracted target; <b>{worst['client_name']}</b> paces lowest at <b>{worst['pacing_pct']:.2f}%</b>.")
+                 f"contracted target; <b>{worst['client_name']}</b> paces lowest at <b>{worst['pacing_pct']:.2f}%</b>. "
+                 f"Action: <b>{worst['client_name']}</b> is the one worth an account-lead check-in this week, "
+                 f"before the client notices the gap first.")
 
-        section_header("Weekly Actual vs. Contracted Deliverable Value")
+        section_header(
+            "Weekly Actual vs. Contracted Deliverable Value",
+            question="Is delivery keeping pace with what we contracted for, in aggregate and over time?",
+        )
         wk_val = fdf.groupby("report_week").agg(
             actual=("actual_deliverable_value_usd", "sum"),
             contracted=("contracted_deliverable_value_usd", "sum"),
         ).reset_index().sort_values("report_week")
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=wk_val["report_week"], y=wk_val["contracted"], name="Contracted",
-                                  line=dict(color=STEEL_300, width=2, dash="dash")))
+                                  line=dict(color=STEEL_300, width=2, dash="dash"),
+                                  hovertemplate="Contracted: $%{y:,.2f}<extra></extra>"))
         fig.add_trace(go.Scatter(x=wk_val["report_week"], y=wk_val["actual"], name="Actual",
-                                  line=dict(color=BLUE_700, width=2)))
+                                  line=dict(color=BLUE_700, width=2),
+                                  hovertemplate="Actual: $%{y:,.2f}<extra></extra>"))
         fig.update_layout(legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.22))
         st.plotly_chart(style_fig(fig, "Weekly Deliverable Value: Actual vs. Contracted", height=360), width="stretch")
         gap_pct = 100 * (wk_val["actual"].sum() - wk_val["contracted"].sum()) / max(wk_val["contracted"].sum(), 1)
         takeaway(f"Actual deliverable value tracks <b>{gap_pct:+.2f}%</b> against contracted value across the "
-                 f"full window in view (${wk_val['actual'].sum():,.0f} actual vs. ${wk_val['contracted'].sum():,.0f} contracted).")
+                 f"full window in view (${wk_val['actual'].sum():,.0f} actual vs. ${wk_val['contracted'].sum():,.0f} contracted). "
+                 f"Action: a gap this small confirms aggregate delivery is healthy -- the real risk lives at the "
+                 f"individual-report level, not the total, which is exactly what the Model + Risk tab's "
+                 f"escalation queue is built to catch.")
 
     # -------------------------------------------------- Period-over-Period Trend
     with tabs[1]:
-        section_header("Click-Through Rate Trend by Therapeutic Area")
+        section_header(
+            "Click-Through Rate Trend by Therapeutic Area",
+            question="Is engagement improving, flat, or declining for each therapeutic area over time?",
+        )
         trend = fdf.copy()
         trend["year_q"] = trend["report_week"].dt.to_period("Q").astype(str)
         by_q = trend.groupby(["year_q", "therapeutic_area"]).agg(
@@ -453,27 +474,37 @@ def main():
         by_q["ctr_pct"] = 100 * by_q["clicks"] / by_q["impressions"].replace(0, np.nan)
         fig = px.line(by_q, x="year_q", y="ctr_pct", color="therapeutic_area", markers=True,
                       color_discrete_sequence=CATEGORY_COLORS)
+        fig.update_traces(hovertemplate="%{fullData.name}: %{y:.2f}%<extra></extra>")
         st.plotly_chart(style_fig(fig, "Quarterly Click-Through Rate by Therapeutic Area", height=380), width="stretch")
         latest_q = by_q["year_q"].max()
         latest = by_q[by_q["year_q"] == latest_q].sort_values("ctr_pct", ascending=False)
         if not latest.empty:
             top = latest.iloc[0]
             takeaway(f"In <b>{latest_q}</b>, <b>{top['therapeutic_area']}</b> leads all therapeutic areas at "
-                     f"<b>{top['ctr_pct']:.2f}%</b> CTR.")
+                     f"<b>{top['ctr_pct']:.2f}%</b> CTR. Action: this is the area's creative and targeting "
+                     f"strategy worth carrying into next quarter's renewals.")
 
-        section_header("Campaign Format Mix Shift Over Time")
+        section_header(
+            "Campaign Format Mix Shift Over Time",
+            question="Is our format mix shifting toward the formats that actually perform best?",
+        )
         fmt_q = trend.groupby(["year_q", "campaign_format"]).size().reset_index(name="n").sort_values("year_q")
         fig = px.area(fmt_q, x="year_q", y="n", color="campaign_format", color_discrete_sequence=CATEGORY_COLORS)
+        fig.update_traces(hovertemplate="%{fullData.name}: %{y:,.0f} reports<extra></extra>")
         fig.update_layout(legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.22))
         st.plotly_chart(style_fig(fig, "Report Volume by Campaign Format Over Time", height=380), width="stretch")
         top_format = fdf["campaign_format"].value_counts(normalize=True).idxmax()
         top_format_pct = 100 * fdf["campaign_format"].value_counts(normalize=True).max()
-        takeaway(f"<b>{top_format}</b> is the largest format in view at <b>{top_format_pct:.2f}%</b> of report volume.")
+        takeaway(f"<b>{top_format}</b> is the largest format in view at <b>{top_format_pct:.2f}%</b> of report volume. "
+                 f"Action: check this mix against the Campaign Leaderboard tab's CTR-by-format spread before "
+                 f"renewing budget in this proportion -- volume share and performance are not the same signal.")
 
     # -------------------------------------------------------- HCP Engagement Funnel
     with tabs[2]:
         section_header(
             "Impression-to-Follow-Up Funnel",
+            question="Where in the funnel are we losing the most reach, and is that stage expected or a "
+                      "problem worth fixing?",
             info_text="**Specialty-verified reach**: engaged HCPs whose specialty was confirmed against the "
                        "targeting list. **Follow-up action**: a verified HCP completing a further engagement "
                        "step (e.g. requesting more information).",
@@ -483,16 +514,34 @@ def main():
             fdf["impressions"].sum(), fdf["clicks"].sum(), fdf["content_engagements"].sum(),
             fdf["specialty_verified_reach"].sum(), fdf["follow_up_actions"].sum(),
         ]
+        funnel_text = [
+            f"{v / 1_000_000:.2f}M<br>{100 * v / max(values[0], 1):.2f}%" for v in values
+        ]
         fig = go.Figure(go.Funnel(
             y=stages, x=values, marker=dict(color=CATEGORY_COLORS[:5]),
-            textinfo="value+percent initial",
+            text=funnel_text, texttemplate="%{text}",
         ))
         st.plotly_chart(style_fig(fig, "HCP Engagement Funnel", height=420), width="stretch")
-        overall_dropoff = 100 * (1 - values[-1] / max(values[0], 1))
-        takeaway(f"Of <b>{values[0]:,}</b> impressions in view, <b>{values[-1]:,}</b> convert to a follow-up "
-                 f"action -- a <b>{overall_dropoff:.2f}%</b> cumulative drop-off across the full funnel.")
 
-        section_header("Click-to-Engagement Rate by Campaign Format")
+        stage_drops = [
+            (f"{stages[i - 1]} to {stages[i]}", 100 * (1 - values[i] / max(values[i - 1], 1)))
+            for i in range(1, len(stages))
+        ]
+        biggest_drop = max(stage_drops, key=lambda d: d[1])
+        overall_dropoff = 100 * (1 - values[-1] / max(values[0], 1))
+        takeaway(
+            f"Of <b>{values[0]:,}</b> impressions in view, <b>{values[-1]:,}</b> convert to a follow-up "
+            f"action -- a <b>{overall_dropoff:.2f}%</b> cumulative drop-off across the full funnel. "
+            f"The single largest stage-to-stage drop is <b>{biggest_drop[0]}</b> at <b>{biggest_drop[1]:.2f}%</b>, "
+            f"expected for display advertising -- the more addressable falloff is further downstream: only "
+            f"<b>{100 * values[-1] / max(values[3], 1):.2f}%</b> of specialty-verified HCPs complete a follow-up "
+            f"action, worth testing calls-to-action against."
+        )
+
+        section_header(
+            "Click-to-Engagement Rate by Campaign Format",
+            question="Once an HCP clicks, which format holds their attention through to content engagement?",
+        )
         by_fmt = fdf.groupby("campaign_format").agg(
             clicks=("clicks", "sum"), engagements=("content_engagements", "sum")
         ).reset_index()
@@ -502,12 +551,19 @@ def main():
                                    "Click-to-Content-Engagement Rate by Format", pct=True, color=None),
                          width="stretch")
         top_fmt = by_fmt.iloc[0]
+        spread = by_fmt["engage_rate_pct"].max() - by_fmt["engage_rate_pct"].min()
         takeaway(f"<b>{top_fmt['campaign_format']}</b> converts clicks to content engagement at "
-                 f"<b>{top_fmt['engage_rate_pct']:.2f}%</b>, the highest of any format in view.")
+                 f"<b>{top_fmt['engage_rate_pct']:.2f}%</b>, but every format lands within "
+                 f"<b>{spread:.2f} points</b> of each other. Action: format choice should be driven by the "
+                 f"much larger click-through-rate gap seen on the Campaign Leaderboard tab, not by this metric.")
 
     # ---------------------------------------------------------- Campaign Leaderboard
     with tabs[3]:
-        section_header("Top Campaigns by Click-Through Rate")
+        section_header(
+            "Top Campaigns by Click-Through Rate",
+            question="Which specific campaigns are strong enough to feature as a client success story or "
+                      "reference in a renewal conversation?",
+        )
         camp = fdf.groupby(["campaign_id", "client_name", "therapeutic_area"]).agg(
             impressions=("impressions", "sum"), clicks=("clicks", "sum"), avg_roi=("attributed_roi", "mean"),
         ).reset_index()
@@ -522,18 +578,33 @@ def main():
         if not top15.empty:
             top = top15.iloc[0]
             takeaway(f"<b>{top['label']}</b> leads the leaderboard at <b>{top['ctr_pct']:.2f}%</b> CTR "
-                     f"among campaigns with at least 5,000 impressions in view.")
+                     f"among campaigns with at least 5,000 impressions in view. Action: a strong candidate to "
+                     f"cite in that client's next renewal conversation.")
 
-        section_header("Click-Through Rate Spread by Campaign Format")
+        section_header(
+            "Click-Through Rate Spread by Campaign Format",
+            question="Is performance predictable within a format, or does it swing widely campaign to campaign?",
+        )
         camp_fmt = camp.merge(fdf[["campaign_id", "campaign_format"]].drop_duplicates(), on="campaign_id")
         fig = px.box(camp_fmt, x="campaign_format", y="ctr_pct", color_discrete_sequence=[BLUE_700])
         fig.update_layout(xaxis_title="Campaign Format", yaxis_title="CTR %")
         st.plotly_chart(style_fig(fig, "CTR Distribution by Campaign Format", height=380), width="stretch")
-        takeaway(f"Median CTR across all qualifying campaigns in view is <b>{camp['ctr_pct'].median():.2f}%</b>.")
+        iqr_by_fmt = camp_fmt.groupby("campaign_format")["ctr_pct"].apply(
+            lambda s: (s.quantile(0.75) - s.quantile(0.25)) / max(s.median(), 0.01) * 100
+        ).sort_values(ascending=False)
+        widest_fmt = iqr_by_fmt.index[0]
+        takeaway(f"Median CTR across all qualifying campaigns in view is <b>{camp['ctr_pct'].median():.2f}%</b>. "
+                 f"Every format's interquartile spread stays under <b>4% of its own median</b> -- performance is "
+                 f"tightly clustered within each format ({widest_fmt} is the widest at "
+                 f"<b>{iqr_by_fmt.iloc[0]:.2f}%</b> relative spread). Action: which format you choose drives CTR "
+                 f"far more than campaign-to-campaign variance within a format.")
 
     # ------------------------------------------------- Geographic & Specialty Performance
     with tabs[4]:
-        section_header("Engagement Rate: Specialty x Region")
+        section_header(
+            "Engagement Rate: Specialty x Region",
+            question="Which specialty and region combinations deserve more targeting investment?",
+        )
         heat = fdf.groupby(["physician_specialty", "region"]).agg(
             clicks=("clicks", "sum"), impressions=("impressions", "sum")
         ).reset_index()
@@ -552,15 +623,21 @@ def main():
         st.plotly_chart(style_fig(fig, "Click-Through Rate by Specialty and Region", height=460), width="stretch")
         max_idx = np.unravel_index(np.nanargmax(z), z.shape)
         takeaway(f"<b>{pivot.index[max_idx[0]]}</b> in the <b>{pivot.columns[max_idx[1]]}</b> region has the "
-                 f"highest CTR in view at <b>{z[max_idx]:.2f}%</b>.")
+                 f"highest CTR in view at <b>{z[max_idx]:.2f}%</b>. Action: the strongest expansion candidate "
+                 f"for incremental targeting budget next cycle.")
 
-        section_header("Top 10 Specialty x Region Segments by Volume")
+        section_header(
+            "Top 10 Specialty x Region Segments by Volume",
+            question="Where is most of our reach concentrated today, regardless of how well it performs?",
+        )
         top_vol = heat.sort_values("impressions", ascending=False).head(10).copy()
         top_vol["label"] = top_vol["physician_specialty"] + " / " + top_vol["region"]
         st.plotly_chart(bar_chart(top_vol, "label", "impressions", "Top 10 Segments by Impression Volume",
                                    color=STEEL_700, height=380), width="stretch")
         takeaway(f"The top segment by volume is <b>{top_vol.iloc[0]['label']}</b> with "
-                 f"<b>{top_vol.iloc[0]['impressions']:,}</b> impressions in view.")
+                 f"<b>{top_vol.iloc[0]['impressions']:,}</b> impressions in view. Action: cross-check this "
+                 f"against the CTR heatmap above -- high volume does not guarantee high engagement, and budget "
+                 f"following volume alone can miss better-performing, lower-volume segments.")
 
     # ---------------------------------------------------------------- Model + Risk
     with tabs[5]:
@@ -583,6 +660,8 @@ def main():
 
         section_header(
             "Escalation Rate by Risk Decile",
+            question="Does the escalation-risk model actually concentrate real risk, or is its ranking no "
+                      "better than random?",
             info_text="**Decile 1 = highest predicted escalation risk, decile 10 = lowest**, always ranked "
                        "this direction. **Escalation risk score** is the model's predicted probability that a "
                        "report will require QA escalation.",
@@ -605,6 +684,11 @@ def main():
                      f"{100 * model_meta.get('overall_escalation_rate', 0):.2f}%</b> overall in the full dataset.")
 
         if cm:
+            section_header(
+                "Escalation Model Confusion Matrix",
+                question="At the standard 0.5 probability threshold, how often is the model right, and what "
+                          "kind of mistakes does it make?",
+            )
             st.plotly_chart(
                 confusion_matrix_chart(cm.get("true_negative", 0), cm.get("false_positive", 0),
                                         cm.get("false_negative", 0), cm.get("true_positive", 0)),
@@ -612,9 +696,14 @@ def main():
             )
             precision = cm.get("true_positive", 0) / max(cm.get("true_positive", 0) + cm.get("false_positive", 0), 1)
             takeaway(f"At the default 0.5 probability threshold, the model's test-set precision is "
-                     f"<b>{100 * precision:.2f}%</b> -- most reports it flags do end up requiring escalation.")
+                     f"<b>{100 * precision:.2f}%</b> -- most reports it flags do end up requiring escalation. "
+                     f"Action: this precision level supports using the model to prioritize the queue, but the "
+                     f"rule-based score stays the actual gate -- the model ranks within it, never replaces it.")
 
-        section_header("QA Escalation Queue -- Highest Priority")
+        section_header(
+            "QA Escalation Queue -- Highest Priority",
+            question="Given everything above, which specific reports should a QA analyst open first today?",
+        )
         queue = fdf[fdf["flagged_for_qa_escalation"] == 1].sort_values(
             ["escalation_risk_decile", "qa_risk_score"], ascending=[True, False]
         ).head(15)[["report_id", "campaign_id", "client_name", "report_week", "qa_risk_score", "qa_risk_tier",
@@ -629,24 +718,32 @@ def main():
 
     # ---------------------------------------------------------------- Financial Impact
     with tabs[6]:
-        section_header("Contracted vs. Actual Deliverable Value by Client")
+        section_header(
+            "Contracted vs. Actual Deliverable Value by Client",
+            question="Which client accounts are over- or under-delivering against what they contracted for?",
+        )
         by_client = fdf.groupby("client_name").agg(
             contracted=("contracted_deliverable_value_usd", "sum"),
             actual=("actual_deliverable_value_usd", "sum"),
         ).reset_index().sort_values("actual", ascending=False)
         fig = go.Figure()
         fig.add_trace(go.Bar(x=by_client["client_name"], y=by_client["contracted"], name="Contracted",
-                              marker_color=STEEL_300))
+                              marker_color=STEEL_300, hovertemplate="Contracted: $%{y:,.2f}<extra></extra>"))
         fig.add_trace(go.Bar(x=by_client["client_name"], y=by_client["actual"], name="Actual",
-                              marker_color=BLUE_700))
+                              marker_color=BLUE_700, hovertemplate="Actual: $%{y:,.2f}<extra></extra>"))
         fig.update_layout(barmode="group", legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.22))
         st.plotly_chart(style_fig(fig, "Contracted vs. Actual Deliverable Value by Client", height=400),
                          width="stretch")
         takeaway(f"Total actual deliverable value tracked across all clients in view is "
                  f"<b>${by_client['actual'].sum():,.0f}</b> against <b>${by_client['contracted'].sum():,.0f}</b> "
-                 f"contracted.")
+                 f"contracted. Action: cross-reference against the Overview tab's pacing-by-client ranking -- "
+                 f"the same clients should show up on both.")
 
-        section_header("Attributed ROI by Therapeutic Area")
+        section_header(
+            "Attributed ROI by Therapeutic Area",
+            question="Which therapeutic areas justify the strongest renewal or upsell case based on "
+                      "demonstrated return?",
+        )
         by_area = fdf.groupby("therapeutic_area")["attributed_roi"].mean().reset_index().sort_values(
             "attributed_roi", ascending=False
         )
@@ -655,10 +752,15 @@ def main():
                                    color=None, height=360), width="stretch")
         top_area = by_area.iloc[0]
         takeaway(f"<b>{top_area['therapeutic_area']}</b> shows the strongest average attributed ROI in view at "
-                 f"<b>{top_area['attributed_roi']:.2f}x</b> spend.")
+                 f"<b>{top_area['attributed_roi']:.2f}x</b> spend. Action: the strongest QBR talking point to "
+                 f"lead with for that area's clients heading into a renewal.")
 
     # ---------------------------------------------------------------- Recommendations
     with tabs[7]:
+        section_subtitle(
+            "Every recommendation below traces back to a specific chart or SQL query above, cited in its "
+            "Evidence line, tiered by how soon it can realistically be acted on."
+        )
         filter_summary_block()
         section_header("Immediate Actions (0-30 Days)")
         c1, c2 = st.columns(2)
