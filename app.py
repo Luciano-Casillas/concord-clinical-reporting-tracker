@@ -137,6 +137,8 @@ def inject_css():
 
         [data-baseweb="tag"] {{ color: {WHITE} !important; }}
         [data-baseweb="tag"] * {{ color: {WHITE} !important; }}
+        [data-tag] {{ color: {WHITE} !important; }}
+        [data-tag] * {{ color: {WHITE} !important; }}
         </style>
         """,
         unsafe_allow_html=True,
