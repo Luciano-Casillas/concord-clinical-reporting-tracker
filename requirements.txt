@@ -1,0 +1,9 @@
+streamlit>=1.56
+pandas>=2.2
+numpy>=2.0
+plotly>=6.0
+
+# Only required to re-run scripts/01_generate_data.py (offline dataset
+# generation and model training), not required to run the Streamlit
+# dashboard itself:
+# scikit-learn>=1.5

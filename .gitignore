@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Internal-only docs -- not part of the public portfolio piece
+docs/INTERVIEW_PREP.md
+
+# Local dashboard run logs
+streamlit_out.log
+streamlit_err.log

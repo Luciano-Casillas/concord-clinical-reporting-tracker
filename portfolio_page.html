@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concord Clinical Network -- Reporting & QA Tracker -- Luciano Casillas</title>
+<style>
+  :root {
+    --navy: #0A3360;
+    --steel-700: #405E7C;
+    --blue-700: #0077B3;
+    --blue-500: #4EBEE5;
+    --steel-300: #D1E2E5;
+    --steel-100: #F4F9FA;
+    --white: #FFFFFF;
+    --black: #2D2D2D;
+    --gray-700: #707070;
+    --green-700: #08CAA9;
+    --green-900: #067462;
+    --orange-700: #FF8A39;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--black);
+    background: var(--white);
+    line-height: 1.55;
+  }
+  .hero {
+    background: linear-gradient(135deg, var(--navy), var(--blue-700));
+    color: var(--white);
+    padding: 64px 24px 56px;
+    text-align: center;
+  }
+  .hero h1 { font-size: 28px; margin: 0 0 12px; }
+  .hero p { font-size: 16px; max-width: 760px; margin: 0 auto; opacity: 0.95; }
+  .hero .badges { margin-top: 20px; }
+  .hero .badges span {
+    display: inline-block; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 14px; padding: 5px 14px; margin: 4px; font-size: 12px;
+  }
+  .container { max-width: 980px; margin: 0 auto; padding: 40px 24px; }
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: -40px;
+  }
+  .stat-card {
+    background: var(--white); border-left: 4px solid var(--blue-700); border-radius: 6px;
+    padding: 18px 16px; box-shadow: 0 2px 10px rgba(10,51,96,0.12);
+  }
+  .stat-card .value { font-size: 24px; font-weight: 700; color: var(--navy); }
+  .stat-card .label { font-size: 12px; color: var(--gray-700); margin-top: 4px; }
+  h2 {
+    color: var(--navy); font-size: 20px; border-left: 4px solid var(--blue-700);
+    background: var(--steel-100); padding: 8px 14px; border-radius: 4px; margin-top: 40px;
+  }
+  .findings { list-style: none; padding: 0; margin: 16px 0; }
+  .findings li {
+    border-left: 4px solid var(--blue-700); background: var(--white); box-shadow: 0 1px 4px rgba(10,51,96,0.08);
+    border-radius: 4px; padding: 12px 16px; margin-bottom: 10px; font-size: 14px;
+  }
+  .findings b { color: var(--navy); }
+  .rec-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+  .rec-col h3 { color: var(--steel-700); font-size: 13px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .rec-card {
+    border-left: 4px solid var(--green-700); background: var(--white); box-shadow: 0 1px 4px rgba(10,51,96,0.08);
+    border-radius: 4px; padding: 12px 14px; margin-bottom: 10px; font-size: 13px;
+  }
+  .rec-card .title { color: var(--navy); font-weight: 700; margin-bottom: 4px; }
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .stack span {
+    background: var(--steel-100); border: 1px solid var(--steel-300); color: var(--navy);
+    border-radius: 12px; padding: 5px 12px; font-size: 12px;
+  }
+  .links { margin-top: 20px; }
+  .links a {
+    display: inline-block; background: var(--blue-700); color: var(--white); text-decoration: none;
+    padding: 10px 20px; border-radius: 4px; margin-right: 10px; font-size: 14px; font-weight: 700;
+  }
+  .links a.secondary { background: var(--steel-700); }
+  footer {
+    text-align: center; color: var(--gray-700); font-size: 12px; padding: 30px 24px 50px;
+  }
+  @media (max-width: 720px) {
+    .stats-grid, .rec-columns { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="hero">
+    <h1>Concord Clinical Network -- Reporting &amp; QA Tracker</h1>
+    <p>351,225 synthetic weekly campaign reports across a fictional physician-reach media network. Builds the
+       rule-based QA checkpoint a Reporting Partnerships analyst owns, plus a logistic-regression escalation-
+       priority model (AUC 0.954) that concentrates 13.42% of real escalations into its single highest-risk
+       decile, an 8.27x lift over baseline.</p>
+    <div class="badges">
+      <span>Python</span><span>Streamlit</span><span>Plotly</span><span>scikit-learn</span>
+      <span>SQL (DuckDB / ANSI)</span><span>Pharma Media Reporting</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="value">1.62%</div><div class="label">QA Escalation Rate</div></div>
+      <div class="stat-card"><div class="value">8.27x</div><div class="label">Model Decile-1 Lift</div></div>
+      <div class="stat-card"><div class="value">5.25%</div><div class="label">Top Format CTR (Email)</div></div>
+      <div class="stat-card"><div class="value">$19.27M</div><div class="label">Deliverable Value Tracked</div></div>
+    </div>
+
+    <h2>Key Findings</h2>
+    <ul class="findings">
+      <li><b>Email leads every campaign format on click-through rate</b> at 5.25%, more than 4x Native Display's 1.25%.</li>
+      <li><b>The escalation-risk model's top decile concentrates 13.42% actual escalation</b> versus 1.62% overall, an 8.27x lift at 0.954 test AUC.</li>
+      <li><b>The duplicate-row check catches 2,450 rows</b> sharing an identical business key -- a double-loaded feed defect caught before it reaches a client.</li>
+      <li><b>Oncology returns the strongest attributed ROI</b> at 7.18x spend, more than double Endocrinology's 3.46x.</li>
+      <li><b>Aggregate pacing tracks within 1.50% of contract</b>, but 9.55% of individual reports still breach the 80-120% tolerance band.</li>
+    </ul>
+
+    <h2>Recommendations</h2>
+    <div class="rec-columns">
+      <div class="rec-col">
+        <h3>Immediate (0-30 Days)</h3>
+        <div class="rec-card"><div class="title">Work the decile-1 escalation queue first</div>Same-day QA review on the model's highest-priority reports before they reach a client.</div>
+        <div class="rec-card"><div class="title">Fix the double-loaded feed</div>Deduplicate the 2,450 report rows sharing an identical business key.</div>
+      </div>
+      <div class="rec-col">
+        <h3>Short-Term (30-90 Days)</h3>
+        <div class="rec-card"><div class="title">Target the lowest-pacing clients</div>Use the pacing-by-client ranking to get ahead of the client's own questions.</div>
+        <div class="rec-card"><div class="title">Reallocate underperforming targeting</div>Shift budget away from the lowest-CTR specialty x region cells.</div>
+      </div>
+      <div class="rec-col">
+        <h3>Strategic (90+ Days)</h3>
+        <div class="rec-card"><div class="title">Embed the QA score at generation time</div>Convert the checkpoint from a downstream pass into a pre-send control.</div>
+        <div class="rec-card"><div class="title">Run the model as a daily queue-ranking job</div>Keep triage current as new reports land, not as a one-time batch score.</div>
+      </div>
+    </div>
+
+    <h2>Tech Stack</h2>
+    <div class="stack">
+      <span>numpy / pandas</span><span>scikit-learn (LogisticRegression)</span><span>Streamlit</span>
+      <span>Plotly</span><span>SQL (DuckDB-validated, ANSI-portable)</span>
+    </div>
+
+    <div class="links">
+      <a href="https://github.com/Luciano-Casillas/concord-clinical-reporting-tracker">View on GitHub</a>
+      <a class="secondary" href="README.md">Full README</a>
+    </div>
+  </div>
+
+  <footer>
+    Luciano Casillas &middot; Independent Analytics Consultant &middot; luciano.casillasjr@outlook.com<br>
+    All data in this project is synthetic and generated for portfolio demonstration purposes only.
+  </footer>
+
+</body>
+</html>

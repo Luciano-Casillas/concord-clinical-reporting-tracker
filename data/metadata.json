@@ -1,0 +1,35 @@
+{
+  "seed": 42,
+  "n_rows": 351225,
+  "window_start": "2024-08-12",
+  "window_end": "2026-08-10",
+  "n_campaigns": 2420,
+  "model": {
+    "algorithm": "LogisticRegression",
+    "purpose": "Escalation-queue prioritization -- ranks within the rule-based QA flag, never replaces it",
+    "features": [
+      "client_name",
+      "therapeutic_area",
+      "campaign_format",
+      "physician_specialty",
+      "region",
+      "weeks_since_launch",
+      "campaign_length_weeks",
+      "pacing_pct",
+      "reported_metric_variance_pct",
+      "missing_data_flag",
+      "pacing_deviation_flag",
+      "qa_risk_score"
+    ],
+    "target": "flagged_for_qa_escalation",
+    "test_auc": 0.9543,
+    "decile1_lift": 8.27,
+    "overall_escalation_rate": 0.0162,
+    "confusion_matrix_test": {
+      "true_negative": 68924,
+      "false_positive": 181,
+      "false_negative": 837,
+      "true_positive": 303
+    }
+  }
+}
