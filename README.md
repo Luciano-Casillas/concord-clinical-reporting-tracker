@@ -100,7 +100,7 @@ Across the full window, actual deliverable value lands within **1.50%** of contr
 
 | Dashboard | Link |
 |---|---|
-| Concord Clinical Network -- Reporting & QA Tracker | [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](#) |
+| Concord Clinical Network -- Reporting & QA Tracker | [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://jsnzsatnlgjjddb9ywzjdu.streamlit.app/) |
 
 ---
 
