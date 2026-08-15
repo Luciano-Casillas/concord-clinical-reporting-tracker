@@ -46,21 +46,31 @@ The Reporting Assurance Program is Concord's internal initiative to make that QA
 
 Email placements convert at **5.25%** CTR, ahead of Sponsored Content (**3.35%**), Video (**1.60%**), and Native Display (**1.25%**). The gap between the best and worst format is more than **4x** -- a bigger lever than any single therapeutic-area or region difference measured in this dataset.
 
+*See: Campaign Leaderboard tab, "Average Click-Through Rate by Campaign Format."*
+
 ### 2. Duplicate-Row Detection Catches a Double-Loaded Feed Before It Reaches a Client
 
 SQL Section 1.3 groups on the report's true business key (campaign, specialty, region, reporting week) and finds **2,450** rows involved in a duplicate -- a feed that got loaded twice. Left uncaught, this double-counts impressions and inflates every downstream KPI for the affected campaigns. The dashboard's Overview and Escalation Queue tabs are built to make this kind of defect visible before a report ships, not after a client questions a number.
+
+*See: Overview tab, "Data Quality Signals at a Glance"; SQL Section 1.3.*
 
 ### 3. The Escalation-Risk Model Concentrates Real Risk Into Its Top Decile
 
 The rule-based QA risk score is deliberately simple and fully auditable -- a weighted combination of week-over-week variance, missing data, and pacing deviation, computed the same week a report is generated. A small logistic regression model sits on top of it, adding client, format, and specialty context the rule alone does not weigh. On the held-out test set, it reaches an AUC of **0.954**, and its highest-risk decile alone contains reports that actually escalate at **13.42%**, against a **1.62%** baseline -- an **8.27x** concentration. It never overrides the rule; it only decides which order a long queue gets worked in.
 
+*See: Model + Risk tab, "Escalation Rate by Risk Decile" and the confusion matrix.*
+
 ### 4. Oncology Leads Attributed ROI, Endocrinology Trails
 
 Average attributed ROI by therapeutic area ranges from **7.18x** spend in Oncology down to **3.46x** in Endocrinology, with Neurology (**5.19x**), Immunology (**4.69x**), and Cardiology (**4.11x**) in between. This is the dollar-value follow-through view that sits alongside raw engagement in every client conversation about renewal.
 
+*See: Financial Impact tab, "Attributed ROI by Therapeutic Area."*
+
 ### 5. Pacing Is On Target in Aggregate, But Nearly 1 in 10 Reports Individually Breaches Tolerance
 
 Across the full window, actual deliverable value lands within **1.50%** of contracted value in aggregate -- a healthy top-line number. But that aggregate hides real dispersion: **9.55%** of individual reports fall outside the 80-120% pacing tolerance band, which is exactly why pacing is scored at the report level, not just rolled up to a client total.
+
+*See: Overview tab, "Weekly Actual vs. Contracted Deliverable Value" (aggregate) and "Data Quality Signals at a Glance" (report-level distribution).*
 
 ---
 

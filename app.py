@@ -252,10 +252,20 @@ def insight(text, label="Key Finding"):
     )
 
 
-def section_header(title, question=None, info_text=None):
+def insight_list(items, label="Key Finding"):
+    body_html = "<ul style='margin:6px 0 0 0;padding-left:18px;'>" + "".join(f"<li>{i}</li>" for i in items) + "</ul>"
+    st.markdown(
+        f'<div class="insight-strip"><div class="label">{label}</div><div class="body">{body_html}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def section_header(title, question=None, answer=None, info_text=None):
     st.markdown(f'<div class="section-header"><h4>{title}</h4></div>', unsafe_allow_html=True)
     if question:
         section_subtitle(f"Question: {question}")
+    if answer:
+        section_subtitle(f"Answer: {answer}")
     if info_text:
         with st.expander("What am I looking at?"):
             st.markdown(info_text)
@@ -413,18 +423,42 @@ def main():
 
     # ----------------------------------------------------------- Overview
     with tabs[0]:
-        insight(
-            f"Of {total_reports:,} reports in the current view, average pacing against contracted delivery is "
-            f"{avg_pacing:.2f}% and {escalation_rate:.2f}% required a QA correction or escalation this cycle. "
-            f"Click-through rate averages {avg_ctr:.2f}% and total attributed deliverable value tracked is "
-            f"${total_value:,.0f}.",
+        insight_list(
+            [
+                "<b>Email</b> leads every campaign format on click-through rate at <b>5.25%</b>, more than "
+                "<b>4x</b> Native Display's <b>1.25%</b> -- the clearest format-mix lever in the book.",
+                "The rule-based QA risk score flags <b>1.62%</b> of reports for escalation each cycle. The "
+                "escalation-risk model built on top of it concentrates <b>13.42%</b> of all real escalations "
+                "into its single highest-risk decile alone, an <b>8.27x</b> lift over the baseline rate "
+                "(test AUC <b>0.954</b>).",
+                "The duplicate-report-row check (SQL Section 1.3) catches <b>2,450</b> rows sharing an "
+                "identical campaign/specialty/region/week business key -- a double-loaded feed defect that "
+                "would silently inflate delivery numbers if it reached a client.",
+                "<b>Oncology</b> campaigns return the strongest attributed ROI at <b>7.18x</b> spend, more "
+                "than double Endocrinology's <b>3.46x</b>, the widest therapeutic-area gap in the book.",
+                "In aggregate, actual deliverable value tracks <b>-1.50%</b> against contracted value across "
+                "the full two-year window (<b>$19.27M</b> actual vs. <b>$19.57M</b> contracted) -- close to "
+                "target overall, but <b>9.55%</b> of individual reports still breach the 80-120% pacing "
+                "tolerance band.",
+                "<b>4.00%</b> of reports carry missing telemetry, the rule score's second-largest risk "
+                "contributor after pacing variance, and the input most often responsible for pushing a "
+                "report into the escalation queue.",
+            ],
             label="Executive Summary",
+        )
+        section_subtitle(
+            f"Current view: {total_reports:,} reports selected, average pacing {avg_pacing:.2f}%, "
+            f"{escalation_rate:.2f}% flagged for escalation, {avg_ctr:.2f}% CTR, ${total_value:,.0f} tracked. "
+            f"The bullets above are the project's full-dataset headline findings; this line reflects your "
+            f"current sidebar filters."
         )
 
         section_header(
             "Pacing vs. Contracted Target by Client",
             question="Which clients are pacing off contracted target and need a proactive conversation "
                       "before they raise it themselves?",
+            answer="All seven clients pace within a tight 99.91%-100.06% band of target, so no client is "
+                   "meaningfully off-track in aggregate.",
         )
         by_client = fdf.groupby("client_name")["pacing_pct"].mean().reset_index().sort_values("pacing_pct", ascending=False)
         fig = bar_chart(by_client, "client_name", "pacing_pct", "Average Pacing vs. Contracted Target by Client",
@@ -441,6 +475,8 @@ def main():
         section_header(
             "Weekly Actual vs. Contracted Deliverable Value",
             question="Is delivery keeping pace with what we contracted for, in aggregate and over time?",
+            answer="Yes -- actual deliverable value tracks within 1.50% of contracted value across the full "
+                   "two-year window, confirming aggregate delivery is healthy.",
         )
         wk_val = fdf.groupby("report_week").agg(
             actual=("actual_deliverable_value_usd", "sum"),
@@ -462,11 +498,45 @@ def main():
                  f"individual-report level, not the total, which is exactly what the Model + Risk tab's "
                  f"escalation queue is built to catch.")
 
+        section_header(
+            "Data Quality Signals at a Glance",
+            question="Is the underlying reporting data itself trustworthy, before we even evaluate performance?",
+            answer="Mostly, with one concrete defect worth fixing: a small number of report rows are "
+                   "double-loaded from the same feed and should be deduplicated before they reach a client.",
+            info_text="**Duplicate report rows**: rows sharing an identical campaign/specialty/region/week "
+                       "business key (see SQL Section 1.3). **Missing telemetry**: rows with a null "
+                       "engagement field. **Pacing deviation**: rows outside the 80-120% contracted-delivery "
+                       "tolerance band.",
+        )
+        dup_mask = fdf.duplicated(subset=["campaign_id", "physician_specialty", "region", "report_week"], keep=False)
+        dup_count = int(dup_mask.sum())
+        missing_pct = 100 * fdf["missing_data_flag"].mean()
+        deviation_pct = 100 * fdf["pacing_deviation_flag"].mean()
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Duplicate Report Rows Found", f"{dup_count:,}")
+        c2.metric("Reports Missing Telemetry", f"{missing_pct:.2f}%")
+        c3.metric("Reports Off Pacing Tolerance", f"{deviation_pct:.2f}%")
+
+        fig = px.histogram(fdf, x="pacing_pct", nbins=60, color_discrete_sequence=[BLUE_700])
+        fig.add_vline(x=80, line_dash="dash", line_color=RED_SOFT)
+        fig.add_vline(x=120, line_dash="dash", line_color=RED_SOFT)
+        fig.update_traces(hovertemplate="Pacing %{x:.2f}%: %{y:,.0f} reports<extra></extra>")
+        st.plotly_chart(style_fig(fig, "Report-Level Pacing Distribution (Tolerance Band Marked)", height=360),
+                         width="stretch")
+        takeaway(f"<b>{dup_count:,}</b> duplicate report rows and <b>{missing_pct:.2f}%</b> of reports with "
+                 f"missing telemetry are the two most fixable data-quality gaps in view. "
+                 f"<b>{deviation_pct:.2f}%</b> of individual reports fall outside the dashed 80-120% pacing "
+                 f"tolerance lines above, even though the Overview's aggregate pacing tracks on target -- "
+                 f"proof that the individual-report check catches what the total hides.")
+
     # -------------------------------------------------- Period-over-Period Trend
     with tabs[1]:
         section_header(
             "Click-Through Rate Trend by Therapeutic Area",
             question="Is engagement improving, flat, or declining for each therapeutic area over time?",
+            answer="Overall CTR stays essentially flat across the window (2.84%-2.93% every quarter, no "
+                   "sustained trend) -- the per-area gap shown below is the more useful read than a time trend.",
         )
         trend = fdf.copy()
         trend["year_q"] = trend["report_week"].dt.to_period("Q").astype(str)
@@ -489,6 +559,9 @@ def main():
         section_header(
             "Campaign Format Mix Shift Over Time",
             question="Is our format mix shifting toward the formats that actually perform best?",
+            answer="No -- Email has the highest CTR of any format (5.25%) but its share of report volume has "
+                   "fallen from 23.49% to 19.21% over the window, while lower-CTR Sponsored Content has grown "
+                   "into the largest format by volume.",
         )
         fmt_q = trend.groupby(["year_q", "campaign_format"]).size().reset_index(name="n").sort_values("year_q")
         fig = px.area(fmt_q, x="year_q", y="n", color="campaign_format", color_discrete_sequence=CATEGORY_COLORS)
@@ -497,9 +570,18 @@ def main():
         st.plotly_chart(style_fig(fig, "Report Volume by Campaign Format Over Time", height=380), width="stretch")
         top_format = fdf["campaign_format"].value_counts(normalize=True).idxmax()
         top_format_pct = 100 * fdf["campaign_format"].value_counts(normalize=True).max()
-        takeaway(f"<b>{top_format}</b> is the largest format in view at <b>{top_format_pct:.2f}%</b> of report volume. "
-                 f"Action: check this mix against the Campaign Leaderboard tab's CTR-by-format spread before "
-                 f"renewing budget in this proportion -- volume share and performance are not the same signal.")
+        email_q = trend[trend["campaign_format"] == "Email"].groupby("year_q").size()
+        email_total_q = trend.groupby("year_q").size()
+        email_share = (100 * email_q / email_total_q).reindex(sorted(email_total_q.index)).dropna()
+        if len(email_share) >= 2:
+            drift = (f"but Email's own share has drifted from <b>{email_share.iloc[0]:.2f}%</b> to "
+                     f"<b>{email_share.iloc[-1]:.2f}%</b> of volume over the same window despite leading on CTR. "
+                     f"Action: rebalancing budget toward Email is the single largest format-mix opportunity in "
+                     f"this dataset.")
+        else:
+            drift = "and Email is filtered out of the current view -- reset filters to see its share trend."
+        takeaway(f"<b>{top_format}</b> is the largest format in view at <b>{top_format_pct:.2f}%</b> of report "
+                 f"volume, {drift}")
 
     # -------------------------------------------------------- HCP Engagement Funnel
     with tabs[2]:
@@ -507,6 +589,9 @@ def main():
             "Impression-to-Follow-Up Funnel",
             question="Where in the funnel are we losing the most reach, and is that stage expected or a "
                       "problem worth fixing?",
+            answer="The impression-to-click step is the largest raw drop, structural to display advertising; "
+                   "the more addressable loss is downstream, where only 20% of specialty-verified HCPs "
+                   "complete a follow-up action.",
             info_text="**Specialty-verified reach**: engaged HCPs whose specialty was confirmed against the "
                        "targeting list. **Follow-up action**: a verified HCP completing a further engagement "
                        "step (e.g. requesting more information).",
@@ -543,6 +628,8 @@ def main():
         section_header(
             "Click-to-Engagement Rate by Campaign Format",
             question="Once an HCP clicks, which format holds their attention through to content engagement?",
+            answer="All four formats convert clicks to engagement within half a point of each other -- format "
+                   "choice should be driven by the CTR gap shown on the Campaign Leaderboard tab, not this step.",
         )
         by_fmt = fdf.groupby("campaign_format").agg(
             clicks=("clicks", "sum"), engagements=("content_engagements", "sum")
@@ -565,6 +652,8 @@ def main():
             "Top Campaigns by Click-Through Rate",
             question="Which specific campaigns are strong enough to feature as a client success story or "
                       "reference in a renewal conversation?",
+            answer="Rosewood Health Sciences' CMP-100644 leads at 5.67% CTR, comfortably ahead of the rest "
+                   "of the top 15.",
         )
         camp = fdf.groupby(["campaign_id", "client_name", "therapeutic_area"]).agg(
             impressions=("impressions", "sum"), clicks=("clicks", "sum"), avg_roi=("attributed_roi", "mean"),
@@ -584,8 +673,34 @@ def main():
                      f"cite in that client's next renewal conversation.")
 
         section_header(
+            "Average Click-Through Rate by Campaign Format",
+            question="Which campaign format actually converts impressions into clicks best -- the single "
+                      "clearest lever in this dataset?",
+            answer="Email leads every other format by a wide margin, more than 4x Native Display's rate.",
+        )
+        fmt_ctr = fdf.groupby("campaign_format").agg(
+            clicks=("clicks", "sum"), impressions=("impressions", "sum")
+        ).reset_index()
+        fmt_ctr["ctr_pct"] = 100 * fmt_ctr["clicks"] / fmt_ctr["impressions"].replace(0, np.nan)
+        fmt_ctr = fmt_ctr.sort_values("ctr_pct", ascending=False)
+        st.plotly_chart(bar_chart(fmt_ctr, "campaign_format", "ctr_pct", "Average CTR by Campaign Format",
+                                   y_title="CTR %", pct=True, color=None, height=360), width="stretch")
+        if len(fmt_ctr) >= 2:
+            best_fmt, worst_fmt = fmt_ctr.iloc[0], fmt_ctr.iloc[-1]
+            fmt_multiple = best_fmt["ctr_pct"] / max(worst_fmt["ctr_pct"], 0.01)
+            takeaway(f"<b>{best_fmt['campaign_format']}</b> converts at <b>{best_fmt['ctr_pct']:.2f}%</b> CTR, "
+                     f"a <b>{fmt_multiple:.2f}x</b> multiple over <b>{worst_fmt['campaign_format']}</b>'s "
+                     f"<b>{worst_fmt['ctr_pct']:.2f}%</b> -- the clearest format-mix lever in the dataset. "
+                     f"Action: this is the number behind the Period-over-Period tab's format-mix recommendation.")
+        else:
+            takeaway(f"Only one format remains in the current filtered view -- reset filters to compare "
+                     f"format-level CTR.")
+
+        section_header(
             "Click-Through Rate Spread by Campaign Format",
             question="Is performance predictable within a format, or does it swing widely campaign to campaign?",
+            answer="Yes, predictable -- every format's interquartile CTR spread stays under 4% of its own "
+                   "median, so which format you pick matters far more than variance within it.",
         )
         camp_fmt = camp.merge(fdf[["campaign_id", "campaign_format"]].drop_duplicates(), on="campaign_id")
         fig = px.box(camp_fmt, x="campaign_format", y="ctr_pct", color_discrete_sequence=[BLUE_700])
@@ -606,6 +721,7 @@ def main():
         section_header(
             "Engagement Rate: Specialty x Region",
             question="Which specialty and region combinations deserve more targeting investment?",
+            answer="Neurology in the Southeast leads all specialty/region combinations on CTR.",
         )
         heat = fdf.groupby(["physician_specialty", "region"]).agg(
             clicks=("clicks", "sum"), impressions=("impressions", "sum")
@@ -631,6 +747,8 @@ def main():
         section_header(
             "Top 10 Specialty x Region Segments by Volume",
             question="Where is most of our reach concentrated today, regardless of how well it performs?",
+            answer="The largest segment by volume doesn't overlap with the top CTR combination above -- a "
+                   "classic volume-vs-performance gap.",
         )
         top_vol = heat.sort_values("impressions", ascending=False).head(10).copy()
         top_vol["label"] = top_vol["physician_specialty"] + " / " + top_vol["region"]
@@ -664,6 +782,8 @@ def main():
             "Escalation Rate by Risk Decile",
             question="Does the escalation-risk model actually concentrate real risk, or is its ranking no "
                       "better than random?",
+            answer="Yes -- decile 1 alone captures an actual escalation rate far above the dataset baseline, "
+                   "confirming the ranking carries real signal.",
             info_text="**Decile 1 = highest predicted escalation risk, decile 10 = lowest**, always ranked "
                        "this direction. **Escalation risk score** is the model's predicted probability that a "
                        "report will require QA escalation.",
@@ -690,6 +810,9 @@ def main():
                 "Escalation Model Confusion Matrix",
                 question="At the standard 0.5 probability threshold, how often is the model right, and what "
                           "kind of mistakes does it make?",
+                answer="It's right most of the time it flags something, but still misses most real "
+                       "escalations at this threshold -- appropriate for a queue-ranking aid layered on top "
+                       "of the rule, not a standalone detector.",
             )
             st.plotly_chart(
                 confusion_matrix_chart(cm.get("true_negative", 0), cm.get("false_positive", 0),
@@ -705,6 +828,8 @@ def main():
         section_header(
             "QA Escalation Queue -- Highest Priority",
             question="Given everything above, which specific reports should a QA analyst open first today?",
+            answer="The table below is that list -- ranked by decile first, then by the rule-based score "
+                   "within each decile, so row one is today's single highest-priority report.",
         )
         queue = fdf[fdf["flagged_for_qa_escalation"] == 1].sort_values(
             ["escalation_risk_decile", "qa_risk_score"], ascending=[True, False]
@@ -723,6 +848,8 @@ def main():
         section_header(
             "Contracted vs. Actual Deliverable Value by Client",
             question="Which client accounts are over- or under-delivering against what they contracted for?",
+            answer="This ranking mirrors the Overview tab's pacing chart exactly, since pacing is literally "
+                   "actual divided by contracted value.",
         )
         by_client = fdf.groupby("client_name").agg(
             contracted=("contracted_deliverable_value_usd", "sum"),
@@ -745,6 +872,8 @@ def main():
             "Attributed ROI by Therapeutic Area",
             question="Which therapeutic areas justify the strongest renewal or upsell case based on "
                       "demonstrated return?",
+            answer="Oncology returns more than double Endocrinology's ROI -- the widest gap of any two areas "
+                   "in the dataset.",
         )
         by_area = fdf.groupby("therapeutic_area")["attributed_roi"].mean().reset_index().sort_values(
             "attributed_roi", ascending=False

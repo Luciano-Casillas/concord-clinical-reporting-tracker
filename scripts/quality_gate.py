@@ -18,9 +18,13 @@ print("PASS: no em dashes")
 # exempt (raw HTML passthrough), but info_text= and any other plain
 # st.markdown() text is not. Caught by browser inspection during manual
 # verification; guarded here so it can't silently regress.
-info_text_blocks = re.findall(r'info_text=(".*?"|\(.*?\))', src, flags=re.DOTALL)
+# info_text= is almost always several adjacent string literals (implicit
+# Python concatenation across lines) -- the regex must capture every
+# adjacent "..." fragment, not just the first one, or a dash buried in a
+# later line silently passes.
+info_text_blocks = re.findall(r'info_text=((?:\s*"(?:[^"\\]|\\.)*"\s*)+)', src)
 for block in info_text_blocks:
-    assert " -- " not in block, f"FAIL: info_text contains ' -- ', renders as a real em dash: {block[:80]}"
+    assert " -- " not in block, f"FAIL: info_text contains ' -- ', renders as a real em dash: {block[:120]}"
 print("PASS: no double-hyphen dashes in info_text (would render as em dash)")
 
 assert "RED_700" not in src, "FAIL: RED_700 found (must be RED_SOFT)"
