@@ -44,7 +44,9 @@ The Reporting Assurance Program is Concord's internal initiative to make that QA
 
 ### 1. Email Outperforms Every Other Format on Click-Through Rate
 
-Email placements convert at **5.25%** CTR, ahead of Sponsored Content (**3.35%**), Video (**1.60%**), and Native Display (**1.25%**). The gap between the best and worst format is more than **4x** -- a bigger lever than any single therapeutic-area or region difference measured in this dataset.
+Email lands in an inbox the physician chose to open. Native Display, Video, and even Sponsored Content are competing for attention inside content the HCP is already reading for some other reason. That built-in difference in intent is likely most of why email converts at **5.25%** CTR while Native Display trails at **1.25%**, with Sponsored Content (**3.35%**) and Video (**1.60%**) in between, more visible than a banner ad, but still earning attention rather than a deliberate open.
+
+**What the chart shows:** look at how far the Email bar sits above the other three. That gap is bigger than any single therapeutic-area or region difference measured anywhere else in this project, which is what makes it the clearest single lever in the whole book if there's one format-mix decision to make this quarter.
 
 *See: Campaign Leaderboard tab, "Average Click-Through Rate by Campaign Format."*
 
@@ -52,7 +54,9 @@ Email placements convert at **5.25%** CTR, ahead of Sponsored Content (**3.35%**
 
 ### 2. Duplicate-Row Detection Catches a Double-Loaded Feed Before It Reaches a Client
 
-SQL Section 1.3 groups on the report's true business key (campaign, specialty, region, reporting week) and finds **2,450** rows involved in a duplicate -- a feed that got loaded twice. Left uncaught, this double-counts impressions and inflates every downstream KPI for the affected campaigns. The dashboard's Overview and Escalation Queue tabs are built to make this kind of defect visible before a report ships, not after a client questions a number.
+A double-loaded feed usually happens the boring way: a retry after a timeout that never got deduplicated, or two systems both pushing the same weekly extract. Because the duplicate rows carry the exact same campaign, specialty, region, and week, they don't look like an error, they look like real additional volume. That is what makes this defect dangerous. It silently inflates every downstream KPI for the affected campaigns with nothing throwing an error anywhere in the pipeline. SQL Section 1.3 catches it by grouping on that true business key and finding **2,450** rows caught in a duplicate.
+
+**What the chart shows:** this signal sits on the Overview tab specifically so a reporting analyst sees it before writing a single client-facing number, not buried in a QA log discovered after the fact. Seeing the flag here is the difference between catching a double-counted feed internally and having a client ask why their impression count looks unusually high.
 
 *See: Overview tab, "Data Quality Signals at a Glance"; SQL Section 1.3.*
 
@@ -60,7 +64,9 @@ SQL Section 1.3 groups on the report's true business key (campaign, specialty, r
 
 ### 3. The Escalation-Risk Model Concentrates Real Risk Into Its Top Decile
 
-The rule-based QA risk score is deliberately simple and fully auditable -- a weighted combination of week-over-week variance, missing data, and pacing deviation, computed the same week a report is generated. A small logistic regression model sits on top of it, adding client, format, and specialty context the rule alone does not weigh. On the held-out test set, it reaches an AUC of **0.954**, and its highest-risk decile alone contains reports that actually escalate at **13.42%**, against a **1.62%** baseline -- an **8.27x** concentration. It never overrides the rule; it only decides which order a long queue gets worked in.
+The rule-based QA score is deliberately simple, a QA analyst could reconstruct it by hand from three inputs: variance, missing data, and pacing deviation. What the rule can't see is which client, format, or specialty combinations have historically been more failure-prone. The logistic regression layered on top learns exactly that from historical patterns, which is why it can sharpen the queue order even though it starts from largely the same inputs as the rule. An AUC of **0.954** with an **8.27x** lift in the top decile means that when the model says "look here first," it is right far more often than picking reports off the queue at random.
+
+**What the chart shows:** notice how much taller the decile-1 bar is than every other decile. If the model weren't actually separating real risk from noise, the bars would look roughly flat across deciles. A bar that towers over the rest like this one is what justifies routing decile 1 straight to same-day review instead of working the queue in whatever order reports happen to land.
 
 *See: Model + Risk tab, "Escalation Rate by Risk Decile" and the confusion matrix.*
 
@@ -68,7 +74,9 @@ The rule-based QA risk score is deliberately simple and fully auditable -- a wei
 
 ### 4. Oncology Leads Attributed ROI, Endocrinology Trails
 
-Average attributed ROI by therapeutic area ranges from **7.18x** spend in Oncology down to **3.46x** in Endocrinology, with Neurology (**5.19x**), Immunology (**4.69x**), and Cardiology (**4.11x**) in between. This is the dollar-value follow-through view that sits alongside raw engagement in every client conversation about renewal.
+Oncology campaigns reach a specialist audience making higher-stakes, higher-dollar treatment decisions, which makes a single follow-up action worth more in attributed revenue than the same click would be worth in a lower-acuity area like Endocrinology, where treatment decisions tend to be more routine. That difference in downstream dollar value, not a difference in engagement, is most of why Oncology's average attributed ROI reaches **7.18x** spend against Endocrinology's **3.46x**, with Neurology (**5.19x**), Immunology (**4.69x**), and Cardiology (**4.11x**) landing in between.
+
+**What the chart shows:** this ranking is worth comparing against a raw engagement chart, because it doesn't necessarily match. Oncology sitting on top here, even where it isn't always the highest-clicking category elsewhere, is the signal that dollar-value follow-through, not just engagement volume, is what should drive the renewal conversation with a client.
 
 *See: Financial Impact tab, "Attributed ROI by Therapeutic Area."*
 
@@ -76,7 +84,9 @@ Average attributed ROI by therapeutic area ranges from **7.18x** spend in Oncolo
 
 ### 5. Pacing Is On Target in Aggregate, But Nearly 1 in 10 Reports Individually Breaches Tolerance
 
-Across the full window, actual deliverable value lands within **1.50%** of contracted value in aggregate -- a healthy top-line number. But that aggregate hides real dispersion: **9.55%** of individual reports fall outside the 80-120% pacing tolerance band, which is exactly why pacing is scored at the report level, not just rolled up to a client total.
+An aggregate number can hide two clients cancelling each other out, one running hot, one running cold, while the blended total looks perfectly healthy. That is close to what's happening here: actual deliverable value lands within **1.50%** of contracted value across the full window, a clean top-line number, but **9.55%** of individual reports still fall outside the 80-120% pacing tolerance band. Somewhere in that mix, real clients are meaningfully over- or under-delivering even while the portfolio nets out close to target.
+
+**What the chart shows:** look at how closely the aggregate actual-versus-contracted line tracks together, then look at the spread in the report-level distribution sitting behind it. That gap, a clean trend line paired with a real tail underneath it, is exactly why pacing is scored at the individual report level in this dashboard instead of only being rolled up to a client total.
 
 *See: Overview tab, "Weekly Actual vs. Contracted Deliverable Value" (aggregate) and "Data Quality Signals at a Glance" (report-level distribution).*
 
