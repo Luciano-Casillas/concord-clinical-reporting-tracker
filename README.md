@@ -48,11 +48,15 @@ Email placements convert at **5.25%** CTR, ahead of Sponsored Content (**3.35%**
 
 *See: Campaign Leaderboard tab, "Average Click-Through Rate by Campaign Format."*
 
+![Average CTR by Campaign Format](screenshots/ctr_by_format.png)
+
 ### 2. Duplicate-Row Detection Catches a Double-Loaded Feed Before It Reaches a Client
 
 SQL Section 1.3 groups on the report's true business key (campaign, specialty, region, reporting week) and finds **2,450** rows involved in a duplicate -- a feed that got loaded twice. Left uncaught, this double-counts impressions and inflates every downstream KPI for the affected campaigns. The dashboard's Overview and Escalation Queue tabs are built to make this kind of defect visible before a report ships, not after a client questions a number.
 
 *See: Overview tab, "Data Quality Signals at a Glance"; SQL Section 1.3.*
+
+![Data Quality Signals at a Glance](screenshots/data_quality.png)
 
 ### 3. The Escalation-Risk Model Concentrates Real Risk Into Its Top Decile
 
@@ -60,17 +64,23 @@ The rule-based QA risk score is deliberately simple and fully auditable -- a wei
 
 *See: Model + Risk tab, "Escalation Rate by Risk Decile" and the confusion matrix.*
 
+![Escalation Rate by Risk Decile](screenshots/escalation_decile.png)
+
 ### 4. Oncology Leads Attributed ROI, Endocrinology Trails
 
 Average attributed ROI by therapeutic area ranges from **7.18x** spend in Oncology down to **3.46x** in Endocrinology, with Neurology (**5.19x**), Immunology (**4.69x**), and Cardiology (**4.11x**) in between. This is the dollar-value follow-through view that sits alongside raw engagement in every client conversation about renewal.
 
 *See: Financial Impact tab, "Attributed ROI by Therapeutic Area."*
 
+![Attributed ROI by Therapeutic Area](screenshots/roi_by_area.png)
+
 ### 5. Pacing Is On Target in Aggregate, But Nearly 1 in 10 Reports Individually Breaches Tolerance
 
 Across the full window, actual deliverable value lands within **1.50%** of contracted value in aggregate -- a healthy top-line number. But that aggregate hides real dispersion: **9.55%** of individual reports fall outside the 80-120% pacing tolerance band, which is exactly why pacing is scored at the report level, not just rolled up to a client total.
 
 *See: Overview tab, "Weekly Actual vs. Contracted Deliverable Value" (aggregate) and "Data Quality Signals at a Glance" (report-level distribution).*
+
+![Weekly Actual vs. Contracted Deliverable Value](screenshots/pacing_trend.png)
 
 ---
 
@@ -101,6 +111,8 @@ Across the full window, actual deliverable value lands within **1.50%** of contr
 | Dashboard | Link |
 |---|---|
 | Concord Clinical Network -- Reporting & QA Tracker | [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://jsnzsatnlgjjddb9ywzjdu.streamlit.app/) |
+
+![Overview tab](screenshots/overview_hero.png)
 
 ---
 
